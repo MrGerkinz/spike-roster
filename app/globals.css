@@ -67,12 +67,30 @@ body {
     border-radius: 0 !important;
   }
 
-  /* Ensure good contrast for badges */
-  span[class*="bg-"] {
-    border: 1px solid #999 !important;
-    background: white !important;
-    color: black !important;
+  /* Force browsers to print background colors */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
+
+  /* Court color cells - preserve colors for print */
+  .print-court-1a { background-color: #dbeafe !important; color: #1e40af !important; }
+  .print-court-1b { background-color: #bfdbfe !important; color: #1e3a8a !important; }
+  .print-court-2a { background-color: #dcfce7 !important; color: #166534 !important; }
+  .print-court-2b { background-color: #bbf7d0 !important; color: #14532d !important; }
+  .print-court-3a { background-color: #fef3c7 !important; color: #92400e !important; }
+  .print-court-3b { background-color: #fde68a !important; color: #78350f !important; }
+  .print-court-4a { background-color: #f3e8ff !important; color: #6b21a8 !important; }
+  .print-court-4b { background-color: #e9d5ff !important; color: #581c87 !important; }
+  .print-bye { background-color: #e4e4e7 !important; color: #52525b !important; }
+  
+  /* Legend squares */
+  .print-legend-1 { background-color: #bfdbfe !important; }
+  .print-legend-2 { background-color: #bbf7d0 !important; }
+  .print-legend-3 { background-color: #fde68a !important; }
+  .print-legend-4 { background-color: #e9d5ff !important; }
+  .print-legend-bye { background-color: #e4e4e7 !important; }
 
   /* Page setup */
   @page {

@@ -12,10 +12,10 @@ export default function RotationMatrix({ matrix, roundCount }: RotationMatrixPro
     return null;
   }
 
-  // Color coding for courts
+  // Color coding for courts (includes print-specific classes)
   const getAssignmentStyle = (assignment: string | 'BYE'): string => {
     if (assignment === 'BYE') {
-      return 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400';
+      return 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 print-bye';
     }
     
     const court = parseInt(assignment.charAt(0));
@@ -23,20 +23,20 @@ export default function RotationMatrix({ matrix, roundCount }: RotationMatrixPro
     
     const courtColors: Record<number, { A: string; B: string }> = {
       1: { 
-        A: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300',
-        B: 'bg-blue-200 dark:bg-blue-800/40 text-blue-900 dark:text-blue-200'
+        A: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 print-court-1a',
+        B: 'bg-blue-200 dark:bg-blue-800/40 text-blue-900 dark:text-blue-200 print-court-1b'
       },
       2: { 
-        A: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300',
-        B: 'bg-green-200 dark:bg-green-800/40 text-green-900 dark:text-green-200'
+        A: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 print-court-2a',
+        B: 'bg-green-200 dark:bg-green-800/40 text-green-900 dark:text-green-200 print-court-2b'
       },
       3: { 
-        A: 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300',
-        B: 'bg-amber-200 dark:bg-amber-800/40 text-amber-900 dark:text-amber-200'
+        A: 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 print-court-3a',
+        B: 'bg-amber-200 dark:bg-amber-800/40 text-amber-900 dark:text-amber-200 print-court-3b'
       },
       4: { 
-        A: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300',
-        B: 'bg-purple-200 dark:bg-purple-800/40 text-purple-900 dark:text-purple-200'
+        A: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 print-court-4a',
+        B: 'bg-purple-200 dark:bg-purple-800/40 text-purple-900 dark:text-purple-200 print-court-4b'
       },
     };
     
@@ -107,16 +107,16 @@ export default function RotationMatrix({ matrix, roundCount }: RotationMatrixPro
         ))).map(court => (
           <div key={court} className="flex items-center gap-1">
             <span className={`inline-block w-4 h-4 rounded ${
-              court === 1 ? 'bg-blue-200 dark:bg-blue-800' :
-              court === 2 ? 'bg-green-200 dark:bg-green-800' :
-              court === 3 ? 'bg-amber-200 dark:bg-amber-800' :
-              'bg-purple-200 dark:bg-purple-800'
+              court === 1 ? 'bg-blue-200 dark:bg-blue-800 print-legend-1' :
+              court === 2 ? 'bg-green-200 dark:bg-green-800 print-legend-2' :
+              court === 3 ? 'bg-amber-200 dark:bg-amber-800 print-legend-3' :
+              'bg-purple-200 dark:bg-purple-800 print-legend-4'
             }`}></span>
             <span className="text-zinc-600 dark:text-zinc-400 print:text-black">Court {court}</span>
           </div>
         ))}
         <div className="flex items-center gap-1">
-          <span className="inline-block w-4 h-4 rounded bg-zinc-200 dark:bg-zinc-700"></span>
+          <span className="inline-block w-4 h-4 rounded bg-zinc-200 dark:bg-zinc-700 print-legend-bye"></span>
           <span className="text-zinc-600 dark:text-zinc-400 print:text-black">BYE</span>
         </div>
       </div>
