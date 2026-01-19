@@ -1,36 +1,128 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Volleyball Roster Generator
+
+A web application for creating optimized rotation schedules for volleyball sessions. Generates fair court assignments that maximize teammate diversity and distribute byes evenly.
+
+## Features
+
+- **CSV Import**: Upload a CSV file with player names or add players manually
+- **Configurable Settings**: Adjust courts (2-4), team size (3-6), and rounds (4-10)
+- **Smart Optimization**: Uses greedy construction with local swap refinement
+  - Maximizes unique teammate pairings
+  - Minimizes repeated teammate assignments
+  - Distributes byes fairly across all players
+- **Fairness Statistics**: View detailed stats on bye distribution and teammate diversity
+- **Export Options**: Download as CSV or print directly from browser
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+ 
+- npm
+
+### Installation
 
 ```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+## Usage
 
-To learn more about Next.js, take a look at the following resources:
+1. **Add Players**: 
+   - Upload a CSV file with player names (one per line)
+   - Or click "Add players manually" to enter names one by one
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. **Configure Session**:
+   - Select number of courts (2-4)
+   - Set players per team (default: 4)
+   - Choose number of rounds (default: 6)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. **Generate Schedule**:
+   - Click "Generate Schedule" to create the rotation
+   - Review the rotation matrix and fairness statistics
+   - Click "Regenerate Schedule" for a different arrangement
 
-## Deploy on Vercel
+4. **Export**:
+   - Click "Export CSV" to download the schedule
+   - Click "Print" for a print-friendly view
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## CSV Format
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Input (Player List)
+Simple one-column format:
+```csv
+Name
+Alice
+Bob
+Charlie
+Diana
+```
+
+Or just names without header:
+```csv
+Alice
+Bob
+Charlie
+Diana
+```
+
+### Output (Rotation Schedule)
+```csv
+Player Name,Round 1,Round 2,Round 3,Round 4,Round 5,Round 6
+Alice,1A,2B,BYE,3A,1B,2A
+Bob,1A,BYE,1B,2A,3B,1A
+...
+```
+
+## Algorithm
+
+The scheduling algorithm uses a two-phase approach:
+
+### Phase 1: Greedy Construction
+- Assigns byes first to players with the fewest total byes
+- Builds teams by selecting players who haven't played together recently
+- Tracks a pairing matrix to count teammate history
+
+### Phase 2: Local Swap Refinement
+- Identifies players in bottom 10% for unique teammate count
+- Attempts position swaps to improve their teammate diversity
+- Accepts improvements even if slightly reducing global optimization
+
+## Tech Stack
+
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Hosting**: Vercel (recommended)
+
+## Deployment
+
+### Deploy to Vercel
+
+1. Push code to GitHub
+2. Import project in [Vercel](https://vercel.com)
+3. Deploy automatically
+
+Or use the Vercel CLI:
+
+```bash
+npm i -g vercel
+vercel
+```
+
+## License
+
+MIT
