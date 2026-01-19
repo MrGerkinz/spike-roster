@@ -2,7 +2,9 @@ import { Player, PlayerRoundAssignment } from './types';
 
 /**
  * Parse a CSV file containing player names
- * Expects either a single column of names, or a column with header "Name" or "Player"
+ * Supports multiple formats:
+ * - Simple one-column list of names
+ * - TryBooking attendee reports (with headers and "1,Name" format)
  */
 export function parsePlayersFromCSV(csvContent: string): Player[] {
   const lines = csvContent.trim().split(/\r?\n/);
@@ -11,20 +13,49 @@ export function parsePlayersFromCSV(csvContent: string): Player[] {
   }
 
   const players: Player[] = [];
-  let startIndex = 0;
+  let inPlayerSection = false;
 
-  // Check if first line is a header
-  const firstLine = lines[0].trim().toLowerCase();
-  if (firstLine === 'name' || firstLine === 'player' || firstLine === 'players' || firstLine === 'names') {
-    startIndex = 1;
-  }
-
-  for (let i = startIndex; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (line) {
-      // Handle CSV with commas - take first column
-      const name = line.split(',')[0].trim().replace(/^["']|["']$/g, '');
-      if (name) {
+    if (!line) continue;
+
+    // Detect TryBooking format - look for the ticket data header
+    if (line.toLowerCase().includes('ticket data') || line.toLowerCase().includes('tickets,')) {
+      inPlayerSection = true;
+      continue;
+    }
+
+    // Skip TryBooking footer
+    if (line.toLowerCase().includes('trybooking.com')) {
+      break;
+    }
+
+    // Skip common header lines
+    const lowerLine = line.toLowerCase();
+    if (lowerLine.startsWith('attendee') || 
+        lowerLine.startsWith('event name') ||
+        lowerLine.startsWith('session time') ||
+        lowerLine.startsWith('booking date') ||
+        lowerLine.startsWith('no. of')) {
+      continue;
+    }
+
+    // Parse the line
+    const parts = parseCSVLine(line);
+    
+    if (parts.length >= 2 && /^\d+$/.test(parts[0].trim())) {
+      // TryBooking format: "1,Player Name" - take second column
+      const name = parts[1].trim();
+      if (name && !isHeaderText(name)) {
+        players.push({
+          id: generateId(),
+          name: name,
+        });
+      }
+    } else if (parts.length >= 1 && !inPlayerSection) {
+      // Simple format: just the name (first column)
+      const name = parts[0].trim();
+      if (name && !isHeaderText(name)) {
         players.push({
           id: generateId(),
           name: name,
@@ -34,6 +65,44 @@ export function parsePlayersFromCSV(csvContent: string): Player[] {
   }
 
   return players;
+}
+
+/**
+ * Parse a CSV line handling quoted values with commas
+ */
+function parseCSVLine(line: string): string[] {
+  const parts: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      parts.push(current.replace(/^["']|["']$/g, ''));
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  parts.push(current.replace(/^["']|["']$/g, ''));
+  return parts;
+}
+
+/**
+ * Check if text looks like a header rather than a player name
+ */
+function isHeaderText(text: string): boolean {
+  const lower = text.toLowerCase();
+  return lower === 'name' || 
+         lower === 'player' || 
+         lower === 'players' || 
+         lower === 'names' ||
+         lower.includes('ticket data') ||
+         lower.includes('please put');
 }
 
 /**

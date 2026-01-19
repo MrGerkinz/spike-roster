@@ -62,10 +62,11 @@ export default function ConfigPanel({ config, onConfigChange, playerCount }: Con
                        bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100
                        focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value={3}>3 players</option>
             <option value={4}>4 players</option>
             <option value={5}>5 players</option>
             <option value={6}>6 players</option>
+            <option value={7}>7 players</option>
+            <option value={8}>8 players</option>
           </select>
         </div>
 
