@@ -30,7 +30,8 @@ body {
   body {
     background: white !important;
     color: black !important;
-    font-size: 12px;
+    font-size: 9px;
+    line-height: 1.2;
   }
 
   /* Hide everything except the rotation matrix */
@@ -46,16 +47,18 @@ body {
   table {
     width: 100%;
     border-collapse: collapse;
+    font-size: 8px;
   }
 
   th, td {
     border: 1px solid #ccc;
-    padding: 4px 8px;
+    padding: 2px 3px;
   }
 
   th {
     background: #f5f5f5 !important;
     font-weight: bold;
+    font-size: 8px;
   }
 
   /* Remove shadows and rounded corners for print */
@@ -67,11 +70,23 @@ body {
     border-radius: 0 !important;
   }
 
+  /* Compact spacing for print */
+  h2 {
+    font-size: 14px !important;
+    margin-bottom: 8px !important;
+  }
+
   /* Force browsers to print background colors */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
+  }
+
+  /* Make assignment cells more compact */
+  span.inline-block {
+    padding: 1px 3px !important;
+    font-size: 7px !important;
   }
 
   /* Court color cells - preserve colors for print */
@@ -85,16 +100,20 @@ body {
   .print-court-4b { background-color: #e9d5ff !important; color: #581c87 !important; }
   .print-bye { background-color: #e4e4e7 !important; color: #52525b !important; }
   
-  /* Legend squares */
+  /* Legend squares - more compact */
+  .print-legend-1, .print-legend-2, .print-legend-3, .print-legend-4, .print-legend-bye {
+    width: 10px !important;
+    height: 10px !important;
+  }
   .print-legend-1 { background-color: #bfdbfe !important; }
   .print-legend-2 { background-color: #bbf7d0 !important; }
   .print-legend-3 { background-color: #fde68a !important; }
   .print-legend-4 { background-color: #e9d5ff !important; }
   .print-legend-bye { background-color: #e4e4e7 !important; }
 
-  /* Page setup */
+  /* Page setup - portrait orientation, fit to one page */
   @page {
-    margin: 1cm;
-    size: landscape;
+    margin: 0.5cm;
+    size: portrait;
   }
 }

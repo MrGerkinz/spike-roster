@@ -45,21 +45,21 @@ export default function RotationMatrix({ matrix, roundCount }: RotationMatrixPro
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-md p-6 print:shadow-none print:p-0">
-      <h2 className="text-xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100 print:text-black">
+      <h2 className="text-xl font-semibold mb-4 text-zinc-900 dark:text-zinc-100 print:text-black print:text-sm print:mb-2">
         Rotation Schedule
       </h2>
       
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full border-collapse text-sm print:text-xs">
           <thead>
             <tr className="border-b-2 border-zinc-300 dark:border-zinc-600 print:border-black">
-              <th className="text-left py-2 px-3 font-semibold text-zinc-700 dark:text-zinc-300 print:text-black">
+              <th className="text-left py-2 px-3 print:py-1 print:px-1 font-semibold text-zinc-700 dark:text-zinc-300 print:text-black">
                 Player
               </th>
               {Array.from({ length: roundCount }, (_, i) => (
                 <th 
                   key={i} 
-                  className="text-center py-2 px-3 font-semibold text-zinc-700 dark:text-zinc-300 print:text-black"
+                  className="text-center py-2 px-3 print:py-1 print:px-1 font-semibold text-zinc-700 dark:text-zinc-300 print:text-black"
                 >
                   R{i + 1}
                 </th>
@@ -75,14 +75,14 @@ export default function RotationMatrix({ matrix, roundCount }: RotationMatrixPro
                   ${idx % 2 === 0 ? 'bg-zinc-50 dark:bg-zinc-800/50 print:bg-white' : ''}
                 `}
               >
-                <td className="py-2 px-3 font-medium text-zinc-900 dark:text-zinc-100 print:text-black whitespace-nowrap">
+                <td className="py-2 px-3 print:py-0.5 print:px-1 font-medium text-zinc-900 dark:text-zinc-100 print:text-black whitespace-nowrap">
                   {player.playerName}
                 </td>
                 {player.roundAssignments.map((assignment, roundIdx) => (
-                  <td key={roundIdx} className="py-2 px-3 text-center">
+                  <td key={roundIdx} className="py-2 px-3 print:py-0.5 print:px-0.5 text-center">
                     <span 
                       className={`
-                        inline-block px-2 py-1 rounded font-mono text-xs font-medium
+                        inline-block px-2 py-1 print:px-1 print:py-0 rounded font-mono text-xs print:text-[7px] font-medium
                         print:border print:border-zinc-400
                         ${getAssignmentStyle(assignment)}
                       `}
@@ -98,7 +98,7 @@ export default function RotationMatrix({ matrix, roundCount }: RotationMatrixPro
       </div>
 
       {/* Court legend */}
-      <div className="mt-4 flex flex-wrap gap-4 text-xs print:mt-2">
+      <div className="mt-4 flex flex-wrap gap-4 text-xs print:mt-1 print:gap-2 print:text-[8px]">
         <span className="text-zinc-600 dark:text-zinc-400 print:text-black font-medium">Legend:</span>
         {[1, 2, 3, 4].slice(0, Math.max(...matrix.flatMap(p => 
           p.roundAssignments
@@ -106,7 +106,7 @@ export default function RotationMatrix({ matrix, roundCount }: RotationMatrixPro
             .map(a => parseInt(a.charAt(0)))
         ))).map(court => (
           <div key={court} className="flex items-center gap-1">
-            <span className={`inline-block w-4 h-4 rounded ${
+            <span className={`inline-block w-4 h-4 print:w-2.5 print:h-2.5 rounded ${
               court === 1 ? 'bg-blue-200 dark:bg-blue-800 print-legend-1' :
               court === 2 ? 'bg-green-200 dark:bg-green-800 print-legend-2' :
               court === 3 ? 'bg-amber-200 dark:bg-amber-800 print-legend-3' :
@@ -116,7 +116,7 @@ export default function RotationMatrix({ matrix, roundCount }: RotationMatrixPro
           </div>
         ))}
         <div className="flex items-center gap-1">
-          <span className="inline-block w-4 h-4 rounded bg-zinc-200 dark:bg-zinc-700 print-legend-bye"></span>
+          <span className="inline-block w-4 h-4 print:w-2.5 print:h-2.5 rounded bg-zinc-200 dark:bg-zinc-700 print-legend-bye"></span>
           <span className="text-zinc-600 dark:text-zinc-400 print:text-black">BYE</span>
         </div>
       </div>
