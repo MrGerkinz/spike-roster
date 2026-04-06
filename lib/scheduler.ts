@@ -9,13 +9,18 @@ import {
   ScheduleConfig,
   ScheduleResult,
   PlayerRoundAssignment,
+  SameTeamConstraint,
   isCourtAssignment,
 } from './types';
 
 /**
  * Main scheduling function that generates an optimized rotation schedule
  */
-export function generateSchedule(players: Player[], config: ScheduleConfig): ScheduleResult {
+export function generateSchedule(
+  players: Player[],
+  config: ScheduleConfig,
+  constraints: SameTeamConstraint[] = []
+): ScheduleResult {
   const warnings: string[] = [];
   
   // Validate inputs
@@ -28,7 +33,16 @@ export function generateSchedule(players: Player[], config: ScheduleConfig): Sch
   
   const maxByesPerPlayer = Math.ceil((byesPerRound * config.rounds) / players.length);
   const minByesPerPlayer = Math.floor((byesPerRound * config.rounds) / players.length);
-  
+
+  // Build locked groups from same-team constraints (transitive closure via union-find)
+  const lockedGroups = buildLockedGroups(players, constraints);
+  const largestGroup = lockedGroups.reduce((max, g) => Math.max(max, g.length), 0);
+  if (largestGroup > config.teamSize) {
+    warnings.push(
+      `A same-team constraint group has ${largestGroup} players but team size is only ${config.teamSize}. The constraint cannot be fully satisfied.`
+    );
+  }
+
   // Initialize tracking structures
   const pairingMatrix = new PairingMatrix(players);
   const byeCounts = new Map<string, number>();
@@ -44,7 +58,8 @@ export function generateSchedule(players: Player[], config: ScheduleConfig): Sch
       roundNum,
       pairingMatrix,
       byeCounts,
-      maxByesPerPlayer
+      maxByesPerPlayer,
+      lockedGroups
     );
     rounds.push(round);
     
@@ -58,7 +73,7 @@ export function generateSchedule(players: Player[], config: ScheduleConfig): Sch
     stats: calculateStats(players, rounds, pairingMatrix),
   };
   
-  refineScheduleForFairness(schedule, players, config, pairingMatrix);
+  refineScheduleForFairness(schedule, players, config, pairingMatrix, constraints);
   
   // Recalculate final stats
   schedule.stats = calculateStats(players, schedule.rounds, pairingMatrix);
@@ -80,7 +95,8 @@ function constructRound(
   roundNumber: number,
   pairingMatrix: PairingMatrix,
   byeCounts: Map<string, number>,
-  maxByesPerPlayer: number
+  maxByesPerPlayer: number,
+  lockedGroups: Player[][]
 ): Round {
   const playersPerRound = config.courts * 2 * config.teamSize;
   const byesNeeded = Math.max(0, players.length - playersPerRound);
@@ -139,7 +155,7 @@ function constructRound(
   }
   
   // Assign players to teams using greedy optimization
-  const teamAssignments = assignPlayersToTeams(playingPlayers, config, pairingMatrix);
+  const teamAssignments = assignPlayersToTeams(playingPlayers, config, pairingMatrix, lockedGroups);
   assignments.push(...teamAssignments);
   
   return {
@@ -150,54 +166,110 @@ function constructRound(
 
 /**
  * Assign players to teams, optimizing for teammate diversity
+ * while respecting locked groups (same-team constraints).
  */
 function assignPlayersToTeams(
   players: Player[],
   config: ScheduleConfig,
-  pairingMatrix: PairingMatrix
+  pairingMatrix: PairingMatrix,
+  lockedGroups: Player[][]
 ): Assignment[] {
   const assignments: Assignment[] = [];
-  const unassigned = shuffleArray([...players]); // Shuffle for randomization
-  
-  for (let court = 1; court <= config.courts; court++) {
-    for (const team of ['A', 'B'] as const) {
-      const teamPlayers: Player[] = [];
-      
-      for (let i = 0; i < config.teamSize && unassigned.length > 0; i++) {
-        if (teamPlayers.length === 0) {
-          // First player on team - pick randomly from remaining
-          const player = unassigned.shift()!;
-          teamPlayers.push(player);
-        } else {
-          // Find the best teammate based on pairing history
-          let bestIndex = 0;
-          let bestScore = -Infinity;
-          
-          for (let j = 0; j < unassigned.length; j++) {
-            const candidate = unassigned[j];
-            const score = scorePotentialTeammate(candidate, teamPlayers, pairingMatrix);
-            if (score > bestScore) {
-              bestScore = score;
-              bestIndex = j;
-            }
-          }
-          
-          const selectedPlayer = unassigned.splice(bestIndex, 1)[0];
-          teamPlayers.push(selectedPlayer);
-        }
-      }
-      
-      // Create assignments for this team
-      for (const player of teamPlayers) {
-        assignments.push({
-          playerId: player.id,
-          court,
-          team,
-        });
+  const unassigned = new Set(shuffleArray([...players]).map(p => p.id));
+  const playerById = new Map(players.map(p => [p.id, p]));
+
+  // Build a lookup from playerId -> the locked group they belong to (only groups present in this round)
+  const playerGroup = new Map<string, Player[]>();
+  for (const group of lockedGroups) {
+    const activeMembers = group.filter(p => unassigned.has(p.id));
+    if (activeMembers.length > 1) {
+      for (const p of activeMembers) {
+        playerGroup.set(p.id, activeMembers);
       }
     }
   }
-  
+
+  // Collect groups that need placement, sorted largest-first so they get seated before slots fill
+  const groupsToPlace: Player[][] = [];
+  const seen = new Set<string>();
+  for (const [, group] of playerGroup) {
+    const key = group.map(p => p.id).sort().join(',');
+    if (!seen.has(key)) {
+      seen.add(key);
+      groupsToPlace.push(group);
+    }
+  }
+  groupsToPlace.sort((a, b) => b.length - a.length);
+
+  // Pre-compute team slots: court -> team -> capacity
+  type Slot = { court: number; team: 'A' | 'B'; players: Player[] };
+  const slots: Slot[] = [];
+  for (let court = 1; court <= config.courts; court++) {
+    for (const team of ['A', 'B'] as const) {
+      slots.push({ court, team, players: [] });
+    }
+  }
+
+  // Phase 1: Place locked groups into slots that can fit them
+  for (const group of groupsToPlace) {
+    // Find best slot: must have enough remaining capacity; prefer slot that minimises repeat pairings with existing members
+    let bestSlot: Slot | null = null;
+    let bestScore = -Infinity;
+
+    for (const slot of slots) {
+      const remaining = config.teamSize - slot.players.length;
+      if (remaining < group.length) continue;
+
+      let score = 0;
+      for (const candidate of group) {
+        score += scorePotentialTeammate(candidate, slot.players, pairingMatrix);
+      }
+      score += Math.random() * 0.1;
+      if (score > bestScore) {
+        bestScore = score;
+        bestSlot = slot;
+      }
+    }
+
+    if (bestSlot) {
+      for (const p of group) {
+        bestSlot.players.push(p);
+        unassigned.delete(p.id);
+      }
+    }
+  }
+
+  // Phase 2: Fill remaining slots with unconstrained players using greedy optimisation
+  const remaining = shuffleArray(
+    Array.from(unassigned).map(id => playerById.get(id)!)
+  );
+
+  for (const slot of slots) {
+    while (slot.players.length < config.teamSize && remaining.length > 0) {
+      if (slot.players.length === 0) {
+        slot.players.push(remaining.shift()!);
+      } else {
+        let bestIndex = 0;
+        let bestScore = -Infinity;
+        for (let j = 0; j < remaining.length; j++) {
+          const score = scorePotentialTeammate(remaining[j], slot.players, pairingMatrix);
+          if (score > bestScore) {
+            bestScore = score;
+            bestIndex = j;
+          }
+        }
+        slot.players.push(remaining.splice(bestIndex, 1)[0]);
+      }
+    }
+  }
+
+  // Convert to Assignment[]
+  for (const slot of slots) {
+    for (const player of slot.players) {
+      assignments.push({ playerId: player.id, court: slot.court, team: slot.team });
+    }
+  }
+
   return assignments;
 }
 
@@ -295,8 +367,12 @@ function refineScheduleForFairness(
   schedule: Schedule,
   players: Player[],
   config: ScheduleConfig,
-  pairingMatrix: PairingMatrix
+  pairingMatrix: PairingMatrix,
+  constraints: SameTeamConstraint[] = []
 ): void {
+  const constrainedPairs = new Set(
+    constraints.map(c => [c.player1Id, c.player2Id].sort().join(':'))
+  );
   const maxIterations = 100;
   
   for (let iteration = 0; iteration < maxIterations; iteration++) {
@@ -337,7 +413,10 @@ function refineScheduleForFairness(
         // Different team check
         if (otherAssignment.court === worstAssignment.court && 
             otherAssignment.team === worstAssignment.team) continue;
-        
+
+        // Skip if swap would separate a constrained pair
+        if (wouldBreakConstraint(round, worstPlayer.playerId, otherAssignment.playerId, constrainedPairs)) continue;
+
         // Try the swap
         const oldWorstTeammates = getTeammatesInRound(round, worstPlayer.playerId);
         const oldOtherTeammates = getTeammatesInRound(round, otherAssignment.playerId);
@@ -449,6 +528,80 @@ export function scheduleToRotationMatrix(
   matrix.sort((a, b) => a.playerName.localeCompare(b.playerName));
   
   return matrix;
+}
+
+/**
+ * Build groups of players that must stay on the same team (transitive closure via union-find).
+ * Returns only groups with 2+ members; ungrouped players are omitted.
+ */
+function buildLockedGroups(players: Player[], constraints: SameTeamConstraint[]): Player[][] {
+  if (constraints.length === 0) return [];
+
+  const parent = new Map<string, string>();
+  const playerById = new Map(players.map(p => [p.id, p]));
+
+  const find = (id: string): string => {
+    while (parent.get(id) !== id) {
+      parent.set(id, parent.get(parent.get(id)!)!);
+      id = parent.get(id)!;
+    }
+    return id;
+  };
+
+  const union = (a: string, b: string) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent.set(ra, rb);
+  };
+
+  for (const p of players) parent.set(p.id, p.id);
+
+  for (const c of constraints) {
+    if (playerById.has(c.player1Id) && playerById.has(c.player2Id)) {
+      union(c.player1Id, c.player2Id);
+    }
+  }
+
+  const groups = new Map<string, Player[]>();
+  for (const p of players) {
+    const root = find(p.id);
+    if (!groups.has(root)) groups.set(root, []);
+    groups.get(root)!.push(p);
+  }
+
+  return Array.from(groups.values()).filter(g => g.length > 1);
+}
+
+/**
+ * Check whether swapping two players in a round would break a same-team constraint.
+ */
+function wouldBreakConstraint(
+  round: Round,
+  playerId1: string,
+  playerId2: string,
+  constrainedPairs: Set<string>
+): boolean {
+  if (constrainedPairs.size === 0) return false;
+
+  const teammates1 = getTeammatesInRound(round, playerId1);
+  const teammates2 = getTeammatesInRound(round, playerId2);
+
+  // After the swap, player1 joins player2's old team (teammates2, minus player2, plus player1)
+  // Check if player1 has a constrained partner still on their OLD team (teammates1)
+  for (const tid of teammates1) {
+    if (tid === playerId2) continue;
+    const key = [playerId1, tid].sort().join(':');
+    if (constrainedPairs.has(key)) return true;
+  }
+
+  // Check if player2 has a constrained partner still on their OLD team (teammates2)
+  for (const tid of teammates2) {
+    if (tid === playerId1) continue;
+    const key = [playerId2, tid].sort().join(':');
+    if (constrainedPairs.has(key)) return true;
+  }
+
+  return false;
 }
 
 /**

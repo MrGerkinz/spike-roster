@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Player, ScheduleConfig, ScheduleResult, PlayerRoundAssignment } from '@/lib/types';
+import { Player, ScheduleConfig, ScheduleResult, PlayerRoundAssignment, SameTeamConstraint } from '@/lib/types';
 import { generateSchedule, scheduleToRotationMatrix } from '@/lib/scheduler';
 import PlayerImport from '@/components/PlayerImport';
+import ConstraintsPanel from '@/components/ConstraintsPanel';
 import ConfigPanel from '@/components/ConfigPanel';
 import RotationMatrix from '@/components/RotationMatrix';
 import StatsPanel from '@/components/StatsPanel';
@@ -16,9 +17,18 @@ export default function Home() {
     teamSize: 7,
     rounds: 6,
   });
+  const [constraints, setConstraints] = useState<SameTeamConstraint[]>([]);
   const [result, setResult] = useState<ScheduleResult | null>(null);
   const [matrix, setMatrix] = useState<PlayerRoundAssignment[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const handlePlayersChange = useCallback((newPlayers: Player[]) => {
+    setPlayers(newPlayers);
+    const ids = new Set(newPlayers.map(p => p.id));
+    setConstraints(prev =>
+      prev.filter(c => ids.has(c.player1Id) && ids.has(c.player2Id))
+    );
+  }, []);
 
   const playersPerRound = config.courts * 2 * config.teamSize;
   const canGenerate = players.length >= playersPerRound;
@@ -31,7 +41,7 @@ export default function Home() {
     // Use setTimeout to allow UI to update
     setTimeout(() => {
       try {
-        const scheduleResult = generateSchedule(players, config);
+        const scheduleResult = generateSchedule(players, config, constraints);
         setResult(scheduleResult);
         setMatrix(scheduleToRotationMatrix(scheduleResult.schedule, players));
       } catch (error) {
@@ -40,7 +50,7 @@ export default function Home() {
         setIsGenerating(false);
       }
     }, 50);
-  }, [players, config, canGenerate]);
+  }, [players, config, constraints, canGenerate]);
 
   const handleRegenerate = useCallback(() => {
     handleGenerate();
@@ -82,10 +92,19 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 print:p-0 print:max-w-none">
         {/* Setup section - hidden on print when schedule exists */}
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 ${result ? 'print:hidden' : ''}`}>
-          <PlayerImport 
-            players={players} 
-            onPlayersChange={setPlayers} 
-          />
+          <div className="space-y-6">
+            <PlayerImport 
+              players={players} 
+              onPlayersChange={handlePlayersChange} 
+            />
+            {players.length >= 2 && (
+              <ConstraintsPanel
+                players={players}
+                constraints={constraints}
+                onConstraintsChange={setConstraints}
+              />
+            )}
+          </div>
           <ConfigPanel 
             config={config} 
             onConfigChange={setConfig}

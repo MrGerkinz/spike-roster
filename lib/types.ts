@@ -57,6 +57,11 @@ export interface PlayerRoundAssignment {
   roundAssignments: (string | 'BYE')[];  // "1A", "2B", "BYE", etc.
 }
 
+export interface SameTeamConstraint {
+  player1Id: string;
+  player2Id: string;
+}
+
 // Type guard functions
 export function isByeAssignment(assignment: RoundAssignment): assignment is ByeAssignment {
   return 'isBye' in assignment && assignment.isBye === true;
