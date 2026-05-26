@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Player, RosterSession } from '@/lib/types';
+import { mergeVolunteersIntoPlayers } from '@/lib/merge-volunteers';
 
 interface VolunteersPanelProps {
   players: Player[];
@@ -38,8 +39,7 @@ function pickDefaultSessionKey(sessions: RosterSession[]): string | null {
   return sessionKey(future ?? sessions[sessions.length - 1]);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function VolunteersPanel(_: VolunteersPanelProps) {
+export default function VolunteersPanel({ players, onPlayersChange }: VolunteersPanelProps) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [loadTick, setLoadTick] = useState(0);
   const [manualKey, setManualKey] = useState<string | null>(null);
@@ -100,6 +100,13 @@ export default function VolunteersPanel(_: VolunteersPanelProps) {
           ? manualKey
           : defaultKey;
         const selected = sessions.find(s => sessionKey(s) === activeKey) ?? sessions[0];
+        const hasAnyVolunteer =
+          selected.equipmentManager !== null ||
+          selected.sessionFacilitator !== null ||
+          selected.skillsCoach !== null;
+        const handleAdd = () => {
+          onPlayersChange(mergeVolunteersIntoPlayers(players, selected));
+        };
         const roleRow = (label: string, value: string | null) => (
           <div className="flex justify-between text-sm py-1">
             <span className="text-zinc-600 dark:text-zinc-400">{label}</span>
@@ -127,6 +134,26 @@ export default function VolunteersPanel(_: VolunteersPanelProps) {
               {roleRow('Equipment Manager', selected.equipmentManager)}
               {roleRow('Session Facilitator', selected.sessionFacilitator)}
               {roleRow('Skills Coach', selected.skillsCoach)}
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                onClick={handleAdd}
+                disabled={!hasAnyVolunteer}
+                className={`px-4 py-2 rounded-md text-sm font-medium
+                  ${hasAnyVolunteer
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed'
+                  }`}
+              >
+                Add volunteers to roster
+              </button>
+              <button
+                onClick={load}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Refresh
+              </button>
             </div>
           </div>
         );
