@@ -192,11 +192,25 @@ export default function PlayerImport({ players, onPlayersChange }: PlayerImportP
                   key={player.id}
                   className="flex items-center justify-between px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 >
-                  <span className="text-sm text-zinc-900 dark:text-zinc-100">
-                    <span className="text-zinc-400 dark:text-zinc-500 mr-2">
+                  <span className="text-sm text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                    <span className="text-zinc-400 dark:text-zinc-500">
                       {index + 1}.
                     </span>
-                    {player.name}
+                    <span>{player.name}</span>
+                    {player.volunteerRole && (
+                      <span
+                        title={
+                          player.volunteerRole === 'EM' ? 'Equipment Manager' :
+                          player.volunteerRole === 'SF' ? 'Session Facilitator' :
+                          'Skills Coach'
+                        }
+                        className="text-xs font-semibold px-1.5 py-0.5 rounded
+                                   bg-amber-100 text-amber-800
+                                   dark:bg-amber-900/40 dark:text-amber-300"
+                      >
+                        {player.volunteerRole}
+                      </span>
+                    )}
                   </span>
                   <div className="flex gap-1">
                     <button
