@@ -73,3 +73,16 @@ export function isByeAssignment(assignment: RoundAssignment): assignment is ByeA
 export function isCourtAssignment(assignment: RoundAssignment): assignment is Assignment {
   return 'court' in assignment && 'team' in assignment;
 }
+
+export interface RosterSession {
+  date: string;          // "30 May 2026" — original display
+  dateISO: string;       // "2026-05-30" — sortable
+  week: number;
+  ampm: 'AM' | 'PM';
+  time: string;
+  equipmentManager: string | null;
+  sessionFacilitator: string | null;
+  skillsCoach: string | null;
+  status: 'Confirmed' | 'Pending';
+  notes: string;         // col L — "Coaching week" / "Social games only" / etc
+}
