@@ -27,10 +27,22 @@ async function fetchRoster(): Promise<LoadState> {
   return { kind: 'ready', sessions: body.sessions };
 }
 
+function sessionKey(s: RosterSession): string {
+  return `${s.dateISO}-${s.ampm}`;
+}
+
+function pickDefaultSessionKey(sessions: RosterSession[]): string | null {
+  if (sessions.length === 0) return null;
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const future = sessions.find(s => s.dateISO >= today);
+  return sessionKey(future ?? sessions[sessions.length - 1]);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function VolunteersPanel(_: VolunteersPanelProps) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [loadTick, setLoadTick] = useState(0);
+  const [manualKey, setManualKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,11 +93,44 @@ export default function VolunteersPanel(_: VolunteersPanelProps) {
         <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming sessions in roster.</p>
       )}
 
-      {state.kind === 'ready' && state.sessions.length > 0 && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Loaded {state.sessions.length} session{state.sessions.length === 1 ? '' : 's'}. Dropdown and Add button come next.
-        </p>
-      )}
+      {state.kind === 'ready' && state.sessions.length > 0 && (() => {
+        const sessions = state.sessions;
+        const defaultKey = pickDefaultSessionKey(sessions);
+        const activeKey = (manualKey && sessions.some(s => sessionKey(s) === manualKey))
+          ? manualKey
+          : defaultKey;
+        const selected = sessions.find(s => sessionKey(s) === activeKey) ?? sessions[0];
+        const roleRow = (label: string, value: string | null) => (
+          <div className="flex justify-between text-sm py-1">
+            <span className="text-zinc-600 dark:text-zinc-400">{label}</span>
+            <span className={value ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-600'}>
+              {value ?? '—'}
+            </span>
+          </div>
+        );
+        return (
+          <div className="space-y-3">
+            <select
+              value={sessionKey(selected)}
+              onChange={(e) => setManualKey(e.target.value)}
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md
+                         bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+            >
+              {sessions.map(s => (
+                <option key={sessionKey(s)} value={sessionKey(s)}>
+                  {s.date} · {s.ampm} · {s.notes || s.status}
+                </option>
+              ))}
+            </select>
+
+            <div className="border-t border-zinc-200 dark:border-zinc-700 pt-2">
+              {roleRow('Equipment Manager', selected.equipmentManager)}
+              {roleRow('Session Facilitator', selected.sessionFacilitator)}
+              {roleRow('Skills Coach', selected.skillsCoach)}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
