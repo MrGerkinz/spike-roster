@@ -59,3 +59,24 @@ describe('parseRow', () => {
     expect(parsed?.notes).toBe('');
   });
 });
+
+import { parseRows } from './roster-parser';
+
+describe('parseRows', () => {
+  it('parses multiple rows and skips empty/spacer rows', () => {
+    const rows = [
+      ['23 May 2026', '1', 'AM', '11:00–1:30 PM', 'Ryan N', 'Ryan N', '', '', '', 'Confirmed', '', 'No coaching'],
+      [],
+      ['', '', '', '', '', '', '', '', '', '', '', ''],
+      ['30 May 2026', '2', 'AM', '11:00–1:30 PM', 'Liam S', 'Ryan N', 'Jacob M', '', 'Ryan N', 'Pending', '', 'Coaching week'],
+    ];
+    const sessions = parseRows(rows);
+    expect(sessions).toHaveLength(2);
+    expect(sessions[0].date).toBe('23 May 2026');
+    expect(sessions[1].date).toBe('30 May 2026');
+  });
+
+  it('returns an empty array for empty input', () => {
+    expect(parseRows([])).toEqual([]);
+  });
+});
