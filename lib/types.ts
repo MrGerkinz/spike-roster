@@ -1,8 +1,11 @@
 // Core types for the volleyball rostering system
 
+export type VolunteerRole = 'EM' | 'SF' | 'SC';
+
 export interface Player {
   id: string;
   name: string;
+  volunteerRole?: VolunteerRole;
 }
 
 export interface Assignment {
