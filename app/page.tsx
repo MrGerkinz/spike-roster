@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { Player, ScheduleConfig, ScheduleResult, PlayerRoundAssignment, SameTeamConstraint } from '@/lib/types';
 import { generateSchedule, scheduleToRotationMatrix } from '@/lib/scheduler';
 import PlayerImport from '@/components/PlayerImport';
+import VolunteersPanel from '@/components/VolunteersPanel';
 import ConstraintsPanel from '@/components/ConstraintsPanel';
 import ConfigPanel from '@/components/ConfigPanel';
 import RotationMatrix from '@/components/RotationMatrix';
@@ -93,9 +94,13 @@ export default function Home() {
         {/* Setup section - hidden on print when schedule exists */}
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 ${result ? 'print:hidden' : ''}`}>
           <div className="space-y-6">
-            <PlayerImport 
-              players={players} 
-              onPlayersChange={handlePlayersChange} 
+            <PlayerImport
+              players={players}
+              onPlayersChange={handlePlayersChange}
+            />
+            <VolunteersPanel
+              players={players}
+              onPlayersChange={handlePlayersChange}
             />
             {players.length >= 2 && (
               <ConstraintsPanel
