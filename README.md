@@ -39,6 +39,36 @@ npm run build
 npm start
 ```
 
+## Volunteer Roster Integration
+
+Optionally, the app can pre-fill each session's volunteer players (Equipment Manager, Session Facilitator, Skills Coach) from a Google Sheets master roster.
+
+### Setup
+
+1. **Create a Google Cloud project** — https://console.cloud.google.com → New Project.
+2. **Enable the Google Sheets API** — https://console.cloud.google.com/apis/library/sheets.googleapis.com → Enable.
+3. **Create an API key** — https://console.cloud.google.com/apis/credentials → + Create credentials → API key. Recommended: restrict the key to the Google Sheets API.
+4. **The roster sheet must be a native Google Sheet.** Office files (`.xlsx`/`.xlsm`) in Drive are not supported by the Sheets API — open the file in Sheets and use `File → Save as Google Sheets` to convert.
+5. **Share the sheet** as "Anyone with the link → Viewer". API keys carry no identity, so the sheet must be publicly readable.
+6. **Sheet layout:** the tab must be named `Master Roster` with header row in row 4 and data starting at row 5. Required columns: Date (A), Week (B), Session (C: AM/PM), Time (D), Equipment Manager (E), Session Facilitator (F), Skills Coach (G), Status (J), Session Notes (L).
+
+### Environment variables
+
+Create `.env.local` in the project root:
+
+```
+GOOGLE_SHEETS_API_KEY=<your API key>
+ROSTER_SHEET_ID=<the sheet ID from the URL>
+```
+
+The sheet ID is the path segment in `https://docs.google.com/spreadsheets/d/<ID>/edit`.
+
+For production (Vercel), set the same two variables in **Project → Settings → Environment Variables**.
+
+### Disabling the integration
+
+If the env vars are unset, the Volunteers panel shows a "Roster source not configured" message and the rest of the app works normally.
+
 ## Usage
 
 1. **Add Players**: 
