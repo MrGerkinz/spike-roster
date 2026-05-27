@@ -14,6 +14,16 @@ import {
 } from './types';
 
 /**
+ * Hidden, hardcoded couples that should share a team in at least one round
+ * whenever both are present. This is intentionally not surfaced in the UI.
+ * Names are matched case-insensitively (trim + lowercase) and exactly.
+ */
+const HIDDEN_SAME_TEAM_COUPLES: ReadonlyArray<readonly [string, string]> = [
+  ['EJ', 'Jelly'],
+  ['Hans', 'Deb'],
+];
+
+/**
  * Main scheduling function that generates an optimized rotation schedule
  */
 export function generateSchedule(
@@ -74,10 +84,14 @@ export function generateSchedule(
   };
   
   refineScheduleForFairness(schedule, players, config, pairingMatrix, constraints);
-  
+
   // Recalculate final stats
   schedule.stats = calculateStats(players, schedule.rounds, pairingMatrix);
-  
+
+  // Final guarantee pass: hidden couples get at least one shared game. Runs
+  // last so the fairness refinement above can't separate them again.
+  enforceHiddenCouples(schedule, players, pairingMatrix, constraints);
+
   return {
     schedule,
     config,
@@ -570,6 +584,139 @@ function buildLockedGroups(players: Player[], constraints: SameTeamConstraint[])
   }
 
   return Array.from(groups.values()).filter(g => g.length > 1);
+}
+
+/**
+ * Best-effort pass that guarantees each hidden couple shares a team in at least
+ * one round. Mutates the schedule's rounds, then rebuilds the pairing matrix and
+ * stats so they stay accurate. Couples with only one (or neither) partner present
+ * are skipped silently — that's a common, unremarkable case.
+ */
+function enforceHiddenCouples(
+  schedule: Schedule,
+  players: Player[],
+  pairingMatrix: PairingMatrix,
+  uiConstraints: SameTeamConstraint[]
+): void {
+  // Index players by normalised name (there can be duplicates).
+  const byName = new Map<string, Player[]>();
+  for (const p of players) {
+    const key = normalizeName(p.name);
+    if (!byName.has(key)) byName.set(key, []);
+    byName.get(key)!.push(p);
+  }
+
+  // Resolve each couple to a present pair of player IDs.
+  const couples: Array<{ names: readonly [string, string]; a: string; b: string }> = [];
+  for (const [name1, name2] of HIDDEN_SAME_TEAM_COUPLES) {
+    const p1 = byName.get(normalizeName(name1))?.[0];
+    const p2 = byName.get(normalizeName(name2))?.[0];
+    if (!p1 || !p2) continue; // only one partner present — skip silently
+    couples.push({ names: [name1, name2], a: p1.id, b: p2.id });
+  }
+  if (couples.length === 0) return;
+
+  // Players we must not displace when making room: hard UI-locked players and
+  // every hidden-couple member (so fixing one couple can't break another).
+  const protectedIds = new Set<string>();
+  for (const c of uiConstraints) {
+    protectedIds.add(c.player1Id);
+    protectedIds.add(c.player2Id);
+  }
+  for (const c of couples) {
+    protectedIds.add(c.a);
+    protectedIds.add(c.b);
+  }
+
+  let changed = false;
+  for (const couple of couples) {
+    if (sharesTeamInAnyRound(schedule, couple.a, couple.b)) continue;
+    if (pairCoupleViaSwap(schedule, couple.a, couple.b, protectedIds)) {
+      changed = true;
+    } else {
+      console.warn(
+        `[scheduler] Could not give ${couple.names[0]} & ${couple.names[1]} a shared game; they never both play the same round.`
+      );
+    }
+  }
+
+  if (changed) {
+    rebuildPairingMatrix(schedule.rounds, pairingMatrix, players);
+    schedule.stats = calculateStats(players, schedule.rounds, pairingMatrix);
+  }
+}
+
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+/** True if the two players are on the same court+team in any round. */
+function sharesTeamInAnyRound(schedule: Schedule, idA: string, idB: string): boolean {
+  return schedule.rounds.some((round) => {
+    const a = round.assignments.find((x) => x.playerId === idA);
+    const b = round.assignments.find((x) => x.playerId === idB);
+    return (
+      !!a && !!b && isCourtAssignment(a) && isCourtAssignment(b) &&
+      a.court === b.court && a.team === b.team
+    );
+  });
+}
+
+/**
+ * Find a round where both players are on court and put them on the same team via
+ * a 1-for-1 swap (which preserves team sizes). Returns true once paired.
+ */
+function pairCoupleViaSwap(
+  schedule: Schedule,
+  idA: string,
+  idB: string,
+  protectedIds: Set<string>
+): boolean {
+  for (const round of schedule.rounds) {
+    const aAssign = round.assignments.find((x) => x.playerId === idA);
+    const bAssign = round.assignments.find((x) => x.playerId === idB);
+    if (
+      !aAssign || !bAssign ||
+      !isCourtAssignment(aAssign) || !isCourtAssignment(bAssign)
+    ) {
+      continue; // at least one is on a bye this round
+    }
+    // Try moving B onto A's team; if A's team has no swappable player, try the reverse.
+    if (moveOntoTeam(round, bAssign, aAssign, protectedIds)) return true;
+    if (moveOntoTeam(round, aAssign, bAssign, protectedIds)) return true;
+  }
+  return false;
+}
+
+/**
+ * Move `mover` onto `target`'s team by swapping it with a non-protected player
+ * already on that team. Mutates the assignment objects in place.
+ */
+function moveOntoTeam(
+  round: Round,
+  mover: Assignment,
+  target: Assignment,
+  protectedIds: Set<string>
+): boolean {
+  const swapTarget = round.assignments.find(
+    (x) =>
+      isCourtAssignment(x) &&
+      x.court === target.court &&
+      x.team === target.team &&
+      x.playerId !== mover.playerId &&
+      x.playerId !== target.playerId &&
+      !protectedIds.has(x.playerId)
+  ) as Assignment | undefined;
+
+  if (!swapTarget) return false;
+
+  const moverCourt = mover.court;
+  const moverTeam = mover.team;
+  mover.court = swapTarget.court;
+  mover.team = swapTarget.team;
+  swapTarget.court = moverCourt;
+  swapTarget.team = moverTeam;
+  return true;
 }
 
 /**

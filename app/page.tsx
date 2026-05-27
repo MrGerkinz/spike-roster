@@ -14,7 +14,7 @@ import ExportButtons from '@/components/ExportButtons';
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [config, setConfig] = useState<ScheduleConfig>({
-    courts: 3,
+    courts: 2,
     teamSize: 7,
     rounds: 6,
   });
