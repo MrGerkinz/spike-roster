@@ -49,6 +49,16 @@ describe('parseRow', () => {
     expect(parseRow(['', '', '', '', '', '', '', '', '', '', '', ''])).toBeNull();
   });
 
+  it('returns null when the date is present but unparseable', () => {
+    const row = ['30 Movember 2026', '2', 'AM', '11:00–1:30 PM', 'Liam S', '', '', '', '', 'Pending', '', 'Coaching week'];
+    expect(parseRow(row)).toBeNull();
+  });
+
+  it('returns null for a two-digit year (malformed date)', () => {
+    const row = ['5 May 26', '1', 'AM', '11:00–1:30 PM', 'Ryan N', '', '', '', '', 'Confirmed', '', 'No coaching'];
+    expect(parseRow(row)).toBeNull();
+  });
+
   it('handles short rows (trailing empty cells omitted by Sheets API)', () => {
     const row = ['20 Jun 2026', '5', 'PM', '1:30–4:00 PM']; // no volunteers, status, etc
     const parsed = parseRow(row);
@@ -78,5 +88,19 @@ describe('parseRows', () => {
 
   it('returns an empty array for empty input', () => {
     expect(parseRows([])).toEqual([]);
+  });
+
+  it('sorts sessions ascending by date then AM before PM regardless of input order', () => {
+    const rows = [
+      ['30 May 2026', '2', 'PM', '1:30–4:00 PM', 'Ryan N', '', '', '', '', 'Pending', '', 'Social games only'],
+      ['23 May 2026', '1', 'AM', '11:00–1:30 PM', 'Ryan N', '', '', '', '', 'Confirmed', '', 'No coaching'],
+      ['30 May 2026', '2', 'AM', '11:00–1:30 PM', 'Liam S', '', '', '', '', 'Pending', '', 'Coaching week'],
+    ];
+    const sessions = parseRows(rows);
+    expect(sessions.map(s => `${s.dateISO}-${s.ampm}`)).toEqual([
+      '2026-05-23-AM',
+      '2026-05-30-AM',
+      '2026-05-30-PM',
+    ]);
   });
 });

@@ -12,7 +12,10 @@ function toISO(displayDate: string): string {
   const [day, month, year] = parts;
   const mm = MONTHS[month.slice(0, 3).toLowerCase()];
   if (!mm) return '';
-  return `${year}-${mm}-${day.padStart(2, '0')}`;
+  if (!/^\d{4}$/.test(year)) return '';
+  const dayNum = Number(day);
+  if (!Number.isInteger(dayNum) || dayNum < 1 || dayNum > 31) return '';
+  return `${year}-${mm}-${String(dayNum).padStart(2, '0')}`;
 }
 
 function nullable(cell: string | undefined): string | null {
@@ -25,6 +28,8 @@ function nullable(cell: string | undefined): string | null {
 export function parseRow(row: string[]): RosterSession | null {
   const date = (row[0] ?? '').trim();
   if (!date) return null;
+  const dateISO = toISO(date);
+  if (!dateISO) return null;
 
   const ampmRaw = (row[2] ?? '').trim().toUpperCase();
   const ampm: 'AM' | 'PM' = ampmRaw === 'PM' ? 'PM' : 'AM';
@@ -34,7 +39,7 @@ export function parseRow(row: string[]): RosterSession | null {
 
   return {
     date,
-    dateISO: toISO(date),
+    dateISO,
     week: Number((row[1] ?? '').trim()) || 0,
     ampm,
     time: (row[3] ?? '').trim(),
@@ -52,5 +57,6 @@ export function parseRows(rows: string[][]): RosterSession[] {
     const parsed = parseRow(row);
     if (parsed) out.push(parsed);
   }
+  out.sort((a, b) => a.dateISO.localeCompare(b.dateISO) || a.ampm.localeCompare(b.ampm));
   return out;
 }

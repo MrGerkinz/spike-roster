@@ -18,7 +18,7 @@ export async function GET() {
 
   let upstream: Response;
   try {
-    upstream = await fetch(url, { cache: 'no-store' });
+    upstream = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
   } catch {
     return NextResponse.json(
       { error: "Couldn't reach the Google Sheets API" },

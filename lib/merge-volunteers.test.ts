@@ -61,4 +61,17 @@ describe('mergeVolunteersIntoPlayers', () => {
     expect(afterB).toHaveLength(1);
     expect(afterB[0].volunteerRole).toBe('SF');
   });
+
+  it('collapses a person listed in two roles to one player with the last-processed role', () => {
+    const session: RosterSession = {
+      ...baseSession,
+      equipmentManager: 'Ryan N',
+      sessionFacilitator: 'Ryan N',
+      skillsCoach: null,
+    };
+    const result = mergeVolunteersIntoPlayers([], session);
+    const ryans = result.filter(p => p.name === 'Ryan N');
+    expect(ryans).toHaveLength(1);
+    expect(ryans[0].volunteerRole).toBe('SF'); // SF processed after EM
+  });
 });

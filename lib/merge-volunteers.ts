@@ -26,6 +26,8 @@ export function mergeVolunteersIntoPlayers(
     const candidate = cell.trim();
     const candidateNorm = normalize(candidate);
 
+    // A person listed in more than one role for the same session collapses to a
+    // single player; the last role processed (EM → SF → SC order) wins the badge.
     const existingIndex = result.findIndex(p => normalize(p.name) === candidateNorm);
     if (existingIndex >= 0) {
       result[existingIndex] = { ...result[existingIndex], volunteerRole: role };
